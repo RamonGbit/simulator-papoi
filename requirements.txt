@@ -1,0 +1,20 @@
+# Núcleo Matemático y Simulación
+simpy>=4.1.1
+numpy>=1.26.0
+scipy>=1.11.0
+sympy>=1.12.0
+
+# Visualización y Dashboard
+pygame>=2.5.0
+matplotlib>=3.8.0
+
+# IA y Reportes
+requests>=2.31.0
+reportlab>=4.1.0
+
+# Configuración y Validación
+pydantic>=2.5.0
+python-dotenv>=1.0.0
+
+# Pruebas Unitarias
+pytest>=8.0.0
