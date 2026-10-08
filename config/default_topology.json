@@ -1,0 +1,137 @@
+{
+  "datacenter_name": "DataStream Networks - Main Datacenter",
+  "version": "1.0.0",
+  "power_budget_total": 300.0,
+  "routers": [
+    {
+      "id": "R_IN",
+      "name": "Ingress Gateway",
+      "buffer_capacity": 100,
+      "pos": [120, 240],
+      "failure_probability": 0.002
+    },
+    {
+      "id": "R1",
+      "name": "Dist-Alpha Router",
+      "buffer_capacity": 50,
+      "pos": [320, 140],
+      "failure_probability": 0.005
+    },
+    {
+      "id": "R2",
+      "name": "Dist-Beta Router",
+      "buffer_capacity": 50,
+      "pos": [320, 340],
+      "failure_probability": 0.005
+    },
+    {
+      "id": "R3",
+      "name": "Core-Backbone Router",
+      "buffer_capacity": 80,
+      "pos": [520, 240],
+      "failure_probability": 0.003
+    }
+  ],
+  "servers": [
+    {
+      "id": "S_WEB",
+      "name": "Cluster Web Services",
+      "cluster_id": "cluster_web",
+      "connected_router": "R3",
+      "cpu_capacity": 64,
+      "ram_capacity": 128,
+      "pos": [740, 120],
+      "ambient_temp": 22.0,
+      "target_temp": 60.0,
+      "emergency_temp": 82.0,
+      "thermal_params": {
+        "a": 42.0,
+        "b": 28.0,
+        "c": 5.0
+      },
+      "cooling_params": {
+        "k_fan": 0.04,
+        "k_penalty": 1.8,
+        "min_fan_power": 10.0,
+        "max_fan_power": 100.0
+      },
+      "lagrange_params": {
+        "weight": 2.5,
+        "efficiency": 0.12
+      }
+    },
+    {
+      "id": "S_DB",
+      "name": "Cluster High-Perf Database",
+      "cluster_id": "cluster_db",
+      "connected_router": "R3",
+      "cpu_capacity": 96,
+      "ram_capacity": 256,
+      "pos": [740, 240],
+      "ambient_temp": 22.0,
+      "target_temp": 62.0,
+      "emergency_temp": 85.0,
+      "thermal_params": {
+        "a": 45.0,
+        "b": 32.0,
+        "c": 4.0
+      },
+      "cooling_params": {
+        "k_fan": 0.05,
+        "k_penalty": 2.2,
+        "min_fan_power": 15.0,
+        "max_fan_power": 120.0
+      },
+      "lagrange_params": {
+        "weight": 3.8,
+        "efficiency": 0.09
+      }
+    },
+    {
+      "id": "S_AI",
+      "name": "Cluster AI Deep Learning",
+      "cluster_id": "cluster_ai",
+      "connected_router": "R3",
+      "cpu_capacity": 128,
+      "ram_capacity": 512,
+      "pos": [740, 360],
+      "ambient_temp": 22.0,
+      "target_temp": 65.0,
+      "emergency_temp": 88.0,
+      "thermal_params": {
+        "a": 50.0,
+        "b": 38.0,
+        "c": 3.0
+      },
+      "cooling_params": {
+        "k_fan": 0.06,
+        "k_penalty": 2.5,
+        "min_fan_power": 20.0,
+        "max_fan_power": 150.0
+      },
+      "lagrange_params": {
+        "weight": 4.5,
+        "efficiency": 0.07
+      }
+    }
+  ],
+  "links": [
+    {"source": "R_IN", "target": "R1", "base_latency": 3.5, "bandwidth": 10.0, "congestion_factor": 0.15},
+    {"source": "R_IN", "target": "R2", "base_latency": 5.0, "bandwidth": 10.0, "congestion_factor": 0.08},
+    {"source": "R1", "target": "R2", "base_latency": 2.0, "bandwidth": 5.0, "congestion_factor": 0.20},
+    {"source": "R2", "target": "R1", "base_latency": 2.0, "bandwidth": 5.0, "congestion_factor": 0.20},
+    {"source": "R1", "target": "R3", "base_latency": 4.0, "bandwidth": 20.0, "congestion_factor": 0.12},
+    {"source": "R2", "target": "R3", "base_latency": 3.0, "bandwidth": 20.0, "congestion_factor": 0.14},
+    {"source": "R3", "target": "S_WEB", "base_latency": 1.2, "bandwidth": 40.0, "congestion_factor": 0.05},
+    {"source": "R3", "target": "S_DB", "base_latency": 1.0, "bandwidth": 40.0, "congestion_factor": 0.04},
+    {"source": "R3", "target": "S_AI", "base_latency": 1.5, "bandwidth": 40.0, "congestion_factor": 0.06}
+  ],
+  "simulation_defaults": {
+    "arrival_rate_lambda": 12.0,
+    "simulation_duration": 120.0,
+    "failure_mean_time": 40.0,
+    "repair_mean_time": 8.0,
+    "gradient_learning_rate": 0.08,
+    "gradient_iterations": 60
+  }
+}
