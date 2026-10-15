@@ -5,7 +5,7 @@ scipy>=1.11.0
 sympy>=1.12.0
 
 # Visualización y Dashboard
-pygame>=2.5.0
+pygame-ce>=2.5.0
 matplotlib>=3.8.0
 
 # IA y Reportes

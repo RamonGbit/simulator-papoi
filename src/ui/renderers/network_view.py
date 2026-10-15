@@ -137,8 +137,8 @@ class NetworkTopologyRenderer:
 
             # Color del nodo según estado
             node_color = ROUTER_ACTIVE if is_active else ROUTER_FAILED
-            pygame.draw.circle(surface, (25, 30, 40), pos, 20)
-            pygame.draw.circle(surface, node_color, pos, 20, width=2)
+            pygame.draw.circle(surface, (25, 30, 40), pos, 24)
+            pygame.draw.circle(surface, node_color, pos, 24, width=2)
 
             # Icono/Texto ID
             id_surf = self.fonts["mono_bold"].render(r_cfg.id, True, TEXT_PRIMARY)
@@ -148,7 +148,7 @@ class NetworkTopologyRenderer:
             q_color = (63, 185, 80) if queue_len < 5 else ((210, 153, 34) if queue_len < 15 else (248, 81, 73))
             q_txt = f"Cola: {queue_len}" if is_active else "OFFLINE"
             q_surf = self.fonts["small"].render(q_txt, True, q_color)
-            surface.blit(q_surf, (pos[0] - 22, pos[1] + 24))
+            surface.blit(q_surf, (pos[0] - 26, pos[1] + 28))
 
         # 4. Dibujar Servidores
         for s_cfg in self.config.servers:
@@ -163,8 +163,8 @@ class NetworkTopologyRenderer:
             p_alloc = s_state.allocated_power if s_state else 50.0
             is_emerg = s_state.is_emergency_cooling if s_state else False
 
-            # Rectángulo del servidor
-            box_w, box_h = 136, 72
+            # Rectángulo del servidor más grande y legible
+            box_w, box_h = 150, 80
             box_rect = pygame.Rect(pos[0] - box_w // 2, pos[1] - box_h // 2, box_w, box_h)
 
             s_border = SERVER_EMERGENCY if is_emerg else (SERVER_WARNING if temp > s_cfg.target_temp else SERVER_NORMAL)
@@ -179,31 +179,30 @@ class NetworkTopologyRenderer:
 
             # Nombre
             s_title = self.fonts["mono_bold"].render(s_cfg.id, True, TEXT_PRIMARY)
-            surface.blit(s_title, (box_rect.x + 8, box_rect.y + 6))
+            surface.blit(s_title, (box_rect.x + 10, box_rect.y + 6))
 
             # Barra de carga CPU/RAM
-            bar_w = box_w - 16
+            bar_w = box_w - 20
             bar_fill = int(bar_w * max(0.0, min(1.0, load)))
-            pygame.draw.rect(surface, (20, 24, 30), (box_rect.x + 8, box_rect.y + 24, bar_w, 6), border_radius=3)
-            pygame.draw.rect(surface, (88, 166, 255), (box_rect.x + 8, box_rect.y + 24, bar_fill, 6), border_radius=3)
+            pygame.draw.rect(surface, (20, 24, 30), (box_rect.x + 10, box_rect.y + 26, bar_w, 7), border_radius=3)
+            pygame.draw.rect(surface, (88, 166, 255), (box_rect.x + 10, box_rect.y + 26, bar_fill, 7), border_radius=3)
 
             # Texto Temp & Fan
             t_color = SERVER_EMERGENCY if is_emerg else TEXT_PRIMARY
-            t_txt = f"{temp:.1f}°C | Fan: {fan_p:.0f}W"
+            t_txt = f"{temp:.1f} C | Fan: {fan_p:.0f}W"
             t_surf = self.fonts["small"].render(t_txt, True, t_color)
-            surface.blit(t_surf, (box_rect.x + 8, box_rect.y + 35))
+            surface.blit(t_surf, (box_rect.x + 10, box_rect.y + 38))
 
             # Texto Energía asignada por Lagrange
-            e_txt = f"P.Lagrange: {p_alloc:.1f}kW"
+            e_txt = f"Lagrange: {p_alloc:.1f} kW"
             e_surf = self.fonts["small"].render(e_txt, True, (163, 113, 247))
-            surface.blit(e_surf, (box_rect.x + 8, box_rect.y + 51))
+            surface.blit(e_surf, (box_rect.x + 10, box_rect.y + 56))
 
         # 5. Banner de Alerta Visual de Cambio Dinámico de Ruta (DP)
         time_since_reroute = time.time() - self.last_path_change_time
         if time_since_reroute < 4.5 and active_path:
-            # Confinado a la zona de topología (izquierda/centro) para NO solapar las cards de servidores
-            banner_w = min(540, self.rect.width - 280)
-            banner_rect = pygame.Rect(self.rect.x + 20, self.rect.y + self.rect.height - 38, banner_w, 26)
+            banner_w = min(620, self.rect.width - 260)
+            banner_rect = pygame.Rect(self.rect.x + 20, self.rect.y + self.rect.height - 40, banner_w, 28)
             pygame.draw.rect(surface, (40, 32, 10), banner_rect, border_radius=4)
             pygame.draw.rect(surface, (255, 215, 0), banner_rect, width=1, border_radius=4)
             msg = f">> RUTA OPTIMA DP ADAPTADA: {' -> '.join(active_path)}"

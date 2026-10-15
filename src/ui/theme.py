@@ -5,9 +5,9 @@ Tema visual y paleta de diseño Cyber-NOC para el Dashboard Pygame.
 from __future__ import annotations
 import pygame
 
-# Dimensiones de pantalla recomendadas
-WINDOW_WIDTH = 1400
-WINDOW_HEIGHT = 820
+# Dimensiones de pantalla recomendadas (Ampliada para alta visibilidad 1080p)
+WINDOW_WIDTH = 1600
+WINDOW_HEIGHT = 940
 FPS = 60
 
 # Paleta de colores Dark-NOC
@@ -50,27 +50,32 @@ CLUSTER_COLORS = {
     "cluster_ai": (163, 113, 247),   # Púrpura
 }
 
-# Inicializador de fuentes
+# Inicializador de fuentes con tipografía escalada y de alta legibilidad
 def get_fonts():
     pygame.font.init()
+    sans_stack = "dejavusans,cantarell,liberationsans,segoeui,arial,helvetica"
+    mono_stack = "dejavusansmono,hack,jetbrainsmononf,consolas,monospace"
     try:
-        title_font = pygame.font.SysFont("Segoe UI", 18, bold=True)
-        header_font = pygame.font.SysFont("Segoe UI", 14, bold=True)
-        regular_font = pygame.font.SysFont("Segoe UI", 12)
-        small_font = pygame.font.SysFont("Segoe UI", 10)
-        mono_font = pygame.font.SysFont("Consolas", 11)
-        mono_bold = pygame.font.SysFont("Consolas", 11, bold=True)
+        title_font = pygame.font.SysFont(sans_stack, 20, bold=True)
+        header_font = pygame.font.SysFont(sans_stack, 15, bold=True)
+        var_font = pygame.font.SysFont(sans_stack, 14, bold=True)
+        regular_font = pygame.font.SysFont(sans_stack, 13)
+        small_font = pygame.font.SysFont(sans_stack, 11)
+        mono_font = pygame.font.SysFont(mono_stack, 12)
+        mono_bold = pygame.font.SysFont(mono_stack, 12, bold=True)
     except Exception:
-        title_font = pygame.font.Font(None, 24)
-        header_font = pygame.font.Font(None, 18)
-        regular_font = pygame.font.Font(None, 15)
-        small_font = pygame.font.Font(None, 13)
-        mono_font = pygame.font.Font(None, 14)
-        mono_bold = pygame.font.Font(None, 14)
+        title_font = pygame.font.Font(None, 26)
+        header_font = pygame.font.Font(None, 20)
+        var_font = pygame.font.Font(None, 19)
+        regular_font = pygame.font.Font(None, 17)
+        small_font = pygame.font.Font(None, 14)
+        mono_font = pygame.font.Font(None, 15)
+        mono_bold = pygame.font.Font(None, 15)
 
     return {
         "title": title_font,
         "header": header_font,
+        "var_label": var_font,
         "regular": regular_font,
         "small": small_font,
         "mono": mono_font,

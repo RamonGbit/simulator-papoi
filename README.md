@@ -4,8 +4,7 @@
 **Universidad José Antonio Páez (UJAP)**  
 **Facultad de Ingeniería — Escuela de Ingeniería en Computación**  
 **Materia:** Métodos Cuantitativos  
-**Evaluación:** 20 Puntos (Módulo 1: 5 pts | Módulo 2: 5 pts | Módulo 3: 5 pts | Defensa: 5 pts)  
-**Paradigma:** Programación Orientada a Objetos (POO) Estricta  
+**Paradigma:** Programación Orientada a Objetos (POO)
 **Lenguaje:** Python 3.10+
 
 ---
@@ -76,7 +75,7 @@ simulator-papoi/
 
 ## 3. Fundamentos Matemáticos
 
-### Módulo 1: Programación Dinámica (5 Ptos)
+### Módulo 1: Programación Dinámica
 
 #### 1.1 Determinación de la Ruta Más Corta
 Aplica el **Principio de Optimalidad de Bellman** por etapas:
@@ -92,7 +91,7 @@ Se realiza backtracking sobre la matriz para recuperar la combinación exacta de
 
 ---
 
-### Módulo 2: Optimización No Lineal (5 Ptos)
+### Módulo 2: Optimización No Lineal
 
 #### 2.1 Análisis Térmico Simbólico (1 Variable - SymPy)
 Función fenomenológica de temperatura en función de la carga $L \in [0, 1]$:
@@ -140,7 +139,7 @@ Si deseas que los reportes consulten directamente la API de Google Gemini en la 
 
 ---
 
-## 5. Guía de Ejecución para la Defensa Presencial
+## 5. Ejecución
 
 ### 5.1 Ejecutar la Interfaz Gráfica Interactiva (Pygame)
 ```bash
@@ -148,16 +147,38 @@ python src/main.py
 ```
 **Controles del Dashboard:**
 - `[ESPACIO]`: Pausar / Reanudar la simulación temporal de SimPy.
+- `[+]` / `[-]`: **Aumentar / Disminuir el Presupuesto Eléctrico de Lagrange** en tiempo real (observa en vivo cómo se recalculan las barras de energía y el multiplicador $\lambda^*$).
+- `[▲]` / `[▼]`: **Aumentar / Reducir la tasa de tráfico Poisson $\lambda$** (observa cómo se saturan o vacían las colas de paquetes en los routers).
+- `[PgUp]` / `[PgDn]`: **Ajustar la temperatura objetivo** del sistema de refrigeración por gradiente.
 - `[F]`: Provocar una falla estocástica manual en un router (demuestra en vivo cómo la ruta de DP se adapta dinámicamente iluminándose en la pantalla).
 - `[R]`: Reparar y restablecer todos los nodos caídos.
 - `[T]`: Inyectar una ráfaga de tráfico entrante.
 - `[P]`: Generar y exportar el informe ejecutivo en PDF con análisis de IA a la carpeta `reports/`.
 - `[ESC]`: Salir del simulador.
 
-### 5.2 Demostración Aislada en Consola (Evaluación de 10 Puntos)
+### 5.2 Modificación de Variables por Comandos y Asistente Interactivo (Pauta 6)
+El sistema permite alterar y validar cualquier variable matemática o de simulación antes de iniciar:
+
+**A. Asistente interactivo en terminal (solicita y valida cada valor):**
+```bash
+python src/main.py --interactive   # o: python src/main.py -i
+```
+
+**B. Argumentos directos por línea de comandos:**
+```bash
+# Cambiar presupuesto de Lagrange a 450 kW y tasa de paquetes a 25 pkt/s
+python src/main.py --budget 450.0 --traffic-lambda 25.0
+
+# Modificar temperatura objetivo y tasa de aprendizaje del gradiente
+python src/main.py --target-temp 55.0 --learning-rate 0.12
+```
+
+### 5.3 Demostración Aislada en Consola (Evaluación de 10 Puntos)
 Para demostrar la **independencia de cada módulo** requerida por las pautas:
 ```bash
 python src/main.py --cli
+# O con parámetros personalizados:
+python src/main.py --budget 500.0 --cli
 ```
 Imprime en pantalla la resolución paso a paso de cada modelo matemático:
 - Enrutamiento DP con y sin congestión.
@@ -166,13 +187,13 @@ Imprime en pantalla la resolución paso a paso de cada modelo matemático:
 - Convergencia del Descenso de Gradiente.
 - Sistema de Lagrange y cálculo del multiplicador óptimo $\lambda^*$.
 
-### 5.3 Ejecutar Suite de Pruebas Unitarias
+### 5.4 Ejecutar Suite de Pruebas Unitarias
 ```bash
 pytest -v
 ```
 Ejecuta las pruebas automáticas para certificar 100% de éxito en todos los algoritmos.
 
-### 5.4 Cargar una Configuración Personalizada
+### 5.5 Cargar una Topología o Configuración Personalizada
 ```bash
 python src/main.py --config config/default_topology.json
 ```

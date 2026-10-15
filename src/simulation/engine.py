@@ -360,6 +360,36 @@ class DataCenterSimulation:
             self.is_paused = not self.is_paused
             return self.is_paused
 
+    def adjust_power_budget(self, delta: float) -> float:
+        """Ajusta dinámicamente el presupuesto eléctrico total de Lagrange."""
+        with self.lock:
+            new_val = max(50.0, min(1000.0, self.config.power_budget_total + delta))
+            self.config.power_budget_total = round(new_val, 1)
+            self._update_lagrange_allocation()
+            self.alert_messages.append(f"PRESUPUESTO LAGRANGE: {self.config.power_budget_total:.1f} kW (lambda*={self.current_lagrange_result.lambda_multiplier:.4f})")
+            return self.config.power_budget_total
+
+    def adjust_arrival_rate(self, delta: float) -> float:
+        """Ajusta dinámicamente la tasa de llegada de tráfico Poisson (lambda)."""
+        with self.lock:
+            new_rate = max(1.0, min(80.0, self.config.simulation_defaults.arrival_rate_lambda + delta))
+            self.config.simulation_defaults.arrival_rate_lambda = round(new_rate, 1)
+            self.traffic_generator.arrival_rate_lambda = new_rate
+            self.alert_messages.append(f"TRAFICO POISSON lambda: {new_rate:.1f} pkt/s")
+            return new_rate
+
+    def adjust_target_temperature(self, delta: float) -> float:
+        """Ajusta la temperatura objetivo del sistema de refrigeración por gradiente."""
+        with self.lock:
+            new_temp = max(35.0, min(80.0, self.config.servers[0].target_temp + delta))
+            new_temp = round(new_temp, 1)
+            for s in self.config.servers:
+                s.target_temp = new_temp
+            for cooler in self.coolers.values():
+                cooler.target_temp = new_temp
+            self.alert_messages.append(f"OBJETIVO TERMICO REFRIGERACION: {new_temp:.1f} C")
+            return new_temp
+
     def get_snapshot(self) -> DataCenterSnapshot:
         """Retorna una instantánea segura del estado para renderizar en Pygame."""
         with self.lock:

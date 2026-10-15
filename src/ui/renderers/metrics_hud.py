@@ -34,7 +34,7 @@ class MetricsHUDRenderer:
         pygame.draw.rect(surface, BORDER_COLOR, r, width=1, border_radius=8)
 
         # Título del Centro de Datos
-        t_title = self.fonts["title"].render("DATASTREAM NETWORKS — CLOUD OPERATIONS CENTER", True, (88, 166, 255))
+        t_title = self.fonts["title"].render("DATASTREAM NETWORKS - CLOUD OPERATIONS CENTER", True, (88, 166, 255))
         surface.blit(t_title, (r.x + 16, r.y + 12))
 
         # Estado de Simulación y Reloj
@@ -42,26 +42,26 @@ class MetricsHUDRenderer:
         status_col = (210, 153, 34) if snapshot.is_paused else (63, 185, 80)
         time_txt = f"[{status_txt}] Tiempo Simulado: {snapshot.sim_time:.1f} s"
         t_time = self.fonts["mono_bold"].render(time_txt, True, status_col)
-        surface.blit(t_time, (r.x + 16, r.y + 36))
+        surface.blit(t_time, (r.x + 16, r.y + 38))
 
         # Tarjetas de Métricas Rápidas (KPIs)
-        kpi_x = r.x + 580
+        kpi_x = r.x + 620
         kpis = [
             ("PAQUETES ENTREGADOS", f"{snapshot.metrics.total_packets_delivered}/{snapshot.metrics.total_packets_created}", (88, 166, 255)),
             ("LATENCIA MEDIA", f"{snapshot.metrics.average_latency:.2f} ms", (255, 215, 0)),
             ("VALOR PROCESADO (SLA)", f"{snapshot.metrics.total_value_processed:.1f} pts", (63, 185, 80)),
-            ("PERDIDOS / CONGESTIÓN", f"{snapshot.metrics.total_packets_dropped}", (248, 81, 73) if snapshot.metrics.total_packets_dropped > 0 else TEXT_MUTED),
+            ("PERDIDOS / CONGESTION", f"{snapshot.metrics.total_packets_dropped}", (248, 81, 73) if snapshot.metrics.total_packets_dropped > 0 else TEXT_MUTED),
             ("RE-ENRUTAMIENTOS DP", f"{snapshot.metrics.path_reroute_count}", (163, 113, 247))
         ]
 
-        slot_w = 155
+        slot_w = 185
         for idx, (label, val, col) in enumerate(kpis):
             bx = kpi_x + (idx * slot_w)
-            pygame.draw.line(surface, BORDER_COLOR, (bx - 10, r.y + 8), (bx - 10, r.y + r.height - 8), 1)
+            pygame.draw.line(surface, BORDER_COLOR, (bx - 12, r.y + 8), (bx - 12, r.y + r.height - 8), 1)
             lbl_surf = self.fonts["small"].render(label, True, TEXT_MUTED)
             val_surf = self.fonts["header"].render(val, True, col)
             surface.blit(lbl_surf, (bx, r.y + 12))
-            surface.blit(val_surf, (bx, r.y + 32))
+            surface.blit(val_surf, (bx, r.y + 34))
 
     def draw_bottom_console(self, surface: pygame.Surface, snapshot: DataCenterSnapshot) -> None:
         """Dibuja la consola de eventos, re-enrutamientos y alertas en la parte inferior."""
@@ -70,13 +70,14 @@ class MetricsHUDRenderer:
         pygame.draw.rect(surface, BORDER_COLOR, r, width=1, border_radius=6)
 
         # Encabezado de la consola
-        lbl = self.fonts["small"].render("LOG DE EVENTOS Y DECISIONES DE OPTIMIZACIÓN EN TIEMPO REAL:", True, TEXT_MUTED)
-        surface.blit(lbl, (r.x + 12, r.y + 6))
+        lbl = self.fonts["header"].render("REGISTRO DE EVENTOS Y OPTIMIZACION EN TIEMPO REAL", True, TEXT_PRIMARY)
+        surface.blit(lbl, (r.x + 14, r.y + 10))
 
-        # Mostrar las últimas 3 alertas
-        alerts = snapshot.alert_messages[-3:] if snapshot.alert_messages else ["Simulación operando en condiciones normales."]
-        start_y = r.y + 22
+        # Mostrar las últimas 7 alertas para aprovechar la mayor altura
+        alerts = snapshot.alert_messages[-7:] if snapshot.alert_messages else ["Simulacion operando en condiciones nominales."]
+        start_y = r.y + 38
         for idx, msg in enumerate(alerts):
-            col = SERVER_EMERGENCY if "ALERTA" in msg or "EMERGENCIA" in msg else ((255, 215, 0) if "REROUTE" in msg else TEXT_SECONDARY)
-            msg_surf = self.fonts["mono"].render(f"• {msg}", True, col)
-            surface.blit(msg_surf, (r.x + 14, start_y + (idx * 16)))
+            clean_msg = msg.replace("λ", "lambda").replace("•", ">").replace("°", " deg ")
+            col = SERVER_EMERGENCY if "ALERTA" in clean_msg or "EMERGENCIA" in clean_msg else ((255, 215, 0) if "REROUTE" in clean_msg else TEXT_SECONDARY)
+            msg_surf = self.fonts["mono"].render(f">> {clean_msg}", True, col)
+            surface.blit(msg_surf, (r.x + 14, start_y + (idx * 22)))

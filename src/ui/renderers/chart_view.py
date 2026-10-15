@@ -126,28 +126,29 @@ class RealtimeChartsRenderer:
         pygame.draw.rect(surface, CHART_AXIS, (plot_x, plot_y, plot_w, plot_h), width=1)
 
         allocs = snapshot.lagrange_allocation
+        tot_budget = sum(allocs.values()) if allocs else 300.0
         if allocs:
-            max_budget = 300.0
+            max_scale = max(80.0, tot_budget * 0.95)
             n_bars = len(allocs)
             slot_w = plot_w / n_bars
             bar_w = int(slot_w * 0.55)
 
             for idx, (cid, p_val) in enumerate(allocs.items()):
                 bx = plot_x + int(idx * slot_w + (slot_w - bar_w) / 2)
-                bar_h = int((p_val / max_budget) * plot_h)
+                bar_h = min(plot_h - 4, int((p_val / max_scale) * plot_h))
                 by = plot_y + plot_h - bar_h
 
                 bar_col = CLUSTER_COLORS.get(cid, (88, 166, 255))
                 pygame.draw.rect(surface, bar_col, (bx, by, bar_w, bar_h), border_radius=4)
 
                 # Etiqueta valor kW
-                val_surf = self.fonts["small"].render(f"{p_val:.1f}kW", True, TEXT_PRIMARY)
-                surface.blit(val_surf, (bx, max(plot_y + 4, by - 14)))
+                val_surf = self.fonts["small"].render(f"{p_val:.1f} kW", True, TEXT_PRIMARY)
+                surface.blit(val_surf, (bx, max(plot_y + 4, by - 16)))
 
                 # Etiqueta nombre clúster
                 c_lbl = self.fonts["small"].render(cid.replace("cluster_", "").upper(), True, TEXT_SECONDARY)
                 surface.blit(c_lbl, (bx + 2, plot_y + plot_h + 8))
 
         # Línea de referencia total
-        lbl_tot = self.fonts["small"].render("Capacidad: 300 kW", True, TEXT_MUTED)
+        lbl_tot = self.fonts["small"].render(f"Presupuesto Total Asignado: {tot_budget:.1f} kW", True, TEXT_MUTED)
         surface.blit(lbl_tot, (plot_x + 8, plot_y + 6))

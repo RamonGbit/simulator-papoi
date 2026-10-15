@@ -148,6 +148,82 @@ def generate_direct_report(config: AppConfig) -> None:
     print(f"\n¡Éxito! Reporte guardado en: {path}")
 
 
+def interactive_config_prompt(config: AppConfig) -> AppConfig:
+    """Solicita interactivamente valores de variables al usuario por terminal con validación estricta (Pauta 6)."""
+    print("\n" + "=" * 70)
+    print("  MODO INTERACTIVO: AJUSTE DE VARIABLES MATEMÁTICAS Y DE SIMULACIÓN")
+    print("  (Presione ENTER en cualquier campo para conservar el valor por defecto)")
+    print("=" * 70)
+
+    # 1. Presupuesto Eléctrico (Lagrange)
+    while True:
+        raw = input(f"1. Presupuesto Eléctrico Global Lagrange (kW) [{config.power_budget_total}]: ").strip()
+        if not raw:
+            break
+        try:
+            val = float(raw)
+            if val <= 10.0 or val > 5000.0:
+                print("   [!] Error de validación: El presupuesto debe estar entre 10.0 y 5000.0 kW.")
+                continue
+            config.power_budget_total = val
+            break
+        except ValueError:
+            print("   [!] Error de validación: Debe ingresar un valor numérico decimal válido.")
+
+    # 2. Tasa de llegada de tráfico Poisson (SimPy)
+    while True:
+        curr_lam = config.simulation_defaults.arrival_rate_lambda
+        raw = input(f"2. Tasa de arribo de tráfico Poisson λ (paquetes/s) [{curr_lam}]: ").strip()
+        if not raw:
+            break
+        try:
+            val = float(raw)
+            if val <= 0.5 or val > 150.0:
+                print("   [!] Error de validación: La tasa λ debe estar entre 0.5 y 150.0 paquetes/s.")
+                continue
+            config.simulation_defaults.arrival_rate_lambda = val
+            break
+        except ValueError:
+            print("   [!] Error de validación: Debe ingresar un valor numérico válido.")
+
+    # 3. Temperatura objetivo (Gradiente)
+    while True:
+        curr_target = config.servers[0].target_temp
+        raw = input(f"3. Temperatura Objetivo de Servidores (°C) [{curr_target}]: ").strip()
+        if not raw:
+            break
+        try:
+            val = float(raw)
+            if val < 30.0 or val > 80.0:
+                print("   [!] Error de validación: La temperatura objetivo debe estar entre 30.0°C y 80.0°C.")
+                continue
+            for s in config.servers:
+                s.target_temp = val
+            break
+        except ValueError:
+            print("   [!] Error de validación: Debe ingresar un número válido.")
+
+    # 4. Learning rate del gradiente descendente
+    while True:
+        curr_lr = config.simulation_defaults.gradient_learning_rate
+        raw = input(f"4. Tasa de Aprendizaje del Gradiente Descendente α [{curr_lr}]: ").strip()
+        if not raw:
+            break
+        try:
+            val = float(raw)
+            if val <= 0.001 or val > 1.0:
+                print("   [!] Error de validación: La tasa de aprendizaje α debe estar en (0.001, 1.0].")
+                continue
+            config.simulation_defaults.gradient_learning_rate = val
+            break
+        except ValueError:
+            print("   [!] Error de validación: Debe ingresar un número decimal válido.")
+
+    print("\n[OK] Nuevas variables validadas y aplicadas exitosamente.")
+    print("=" * 70 + "\n")
+    return config
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Simulador de Optimización para Redes de Centros de Datos (DataStream Networks)"
@@ -157,6 +233,35 @@ def main() -> None:
         type=str,
         default=None,
         help="Ruta a un archivo JSON con topología personalizada para validar y cargar."
+    )
+    parser.add_argument(
+        "--interactive", "-i",
+        action="store_true",
+        help="Inicia un asistente de consola para modificar variables numéricas interactivamente antes de simular."
+    )
+    parser.add_argument(
+        "--budget",
+        type=float,
+        default=None,
+        help="Modifica el presupuesto eléctrico global de Lagrange (kW)."
+    )
+    parser.add_argument(
+        "--traffic-lambda",
+        type=float,
+        default=None,
+        help="Modifica la tasa de llegada de tráfico Poisson λ (paquetes/segundo)."
+    )
+    parser.add_argument(
+        "--target-temp",
+        type=float,
+        default=None,
+        help="Modifica la temperatura objetivo (°C) para el enfriamiento por gradiente."
+    )
+    parser.add_argument(
+        "--learning-rate",
+        type=float,
+        default=None,
+        help="Modifica la tasa de aprendizaje α del descenso de gradiente."
     )
     parser.add_argument(
         "--cli", "--demo",
@@ -178,6 +283,40 @@ def main() -> None:
     except Exception as e:
         print(f"[ERROR] Validación fallida de la configuración: {e}", file=sys.stderr)
         sys.exit(1)
+
+    # Validaciones y aplicación de variables introducidas por comandos (Pauta 6)
+    if args.budget is not None:
+        if args.budget <= 10.0 or args.budget > 5000.0:
+            print("[ERROR] El presupuesto eléctrico (--budget) debe estar entre 10 y 5000 kW.", file=sys.stderr)
+            sys.exit(1)
+        config.power_budget_total = args.budget
+        print(f"[OK] Variable actualizada: Presupuesto Lagrange = {args.budget} kW")
+
+    if args.traffic_lambda is not None:
+        if args.traffic_lambda <= 0.0 or args.traffic_lambda > 200.0:
+            print("[ERROR] La tasa de tráfico (--traffic-lambda) debe estar entre 0.1 y 200.0 pkt/s.", file=sys.stderr)
+            sys.exit(1)
+        config.simulation_defaults.arrival_rate_lambda = args.traffic_lambda
+        print(f"[OK] Variable actualizada: Tráfico Poisson λ = {args.traffic_lambda} pkt/s")
+
+    if args.target_temp is not None:
+        if args.target_temp < 30.0 or args.target_temp > 80.0:
+            print("[ERROR] La temperatura objetivo (--target-temp) debe estar entre 30 y 80 °C.", file=sys.stderr)
+            sys.exit(1)
+        for s in config.servers:
+            s.target_temp = args.target_temp
+        print(f"[OK] Variable actualizada: Temp Objetivo = {args.target_temp} °C")
+
+    if args.learning_rate is not None:
+        if args.learning_rate <= 0.0 or args.learning_rate > 1.0:
+            print("[ERROR] La tasa de aprendizaje (--learning-rate) debe estar en (0.0, 1.0].", file=sys.stderr)
+            sys.exit(1)
+        config.simulation_defaults.gradient_learning_rate = args.learning_rate
+        print(f"[OK] Variable actualizada: Learning Rate α = {args.learning_rate}")
+
+    # Asistente interactivo si se solicitó -i / --interactive
+    if args.interactive:
+        config = interactive_config_prompt(config)
 
     if args.cli:
         run_cli_demo(config)

@@ -15,7 +15,8 @@ from config.settings import AppConfig
 from src.simulation.engine import DataCenterSimulation
 from src.reporting.pdf_generator import PDFReportGenerator
 from src.ui.theme import (
-    WINDOW_WIDTH, WINDOW_HEIGHT, FPS, BG_DARK, get_fonts
+    WINDOW_WIDTH, WINDOW_HEIGHT, FPS, BG_DARK, get_fonts,
+    TEXT_PRIMARY, TEXT_SECONDARY, TEXT_MUTED, BORDER_COLOR, CARD_BG
 )
 from src.ui.components.button import UIActionButton
 from src.ui.renderers.network_view import NetworkTopologyRenderer
@@ -46,40 +47,92 @@ class DataCenterDashboardApp:
         self.status_toast: str = ""
         self.status_toast_timer: float = 0.0
 
-        # 3. Componentes Visuales y Renderizadores
-        # HUD Superior
+        # 3. Componentes Visuales y Renderizadores Escalados a 1600x940
+        # HUD Superior de KPIs
         self.hud_renderer = MetricsHUDRenderer(
-            top_rect=(20, 15, WINDOW_WIDTH - 40, 65),
-            bottom_rect=(20, 625, 830, 80),
+            top_rect=(20, 12, WINDOW_WIDTH - 40, 68),
+            bottom_rect=(20, 660, 750, 230),
             fonts=self.fonts
         )
 
-        # Lienzo de Topología
+        # Lienzo de Topología Ampliado (Izquierda)
         self.network_renderer = NetworkTopologyRenderer(
-            rect=(20, 90, 830, 520),
+            rect=(20, 88, 930, 560),
             config=config,
             fonts=self.fonts
         )
 
-        # Gráficas en tiempo real (Gradiente y Lagrange)
+        # Gráficas en tiempo real Ampliadas (Derecha)
         self.charts_renderer = RealtimeChartsRenderer(
-            rect=(870, 90, 510, 520),
+            rect=(970, 88, 610, 560),
             fonts=self.fonts
         )
 
-        # 4. Botones de Control Interactivo
+        # Panel de Control Inferior Derecho
+        self.controls_rect = pygame.Rect(790, 660, 790, 230)
+
+        # 4. Botones de Control Interactivo (Variables y Operaciones)
         self.buttons: list[UIActionButton] = []
         self._init_buttons()
 
     def _init_buttons(self) -> None:
-        """Inicializa los botones de acción ubicados en la barra inferior derecha."""
-        start_x = 870
-        btn_y = 625
-        w1, w2, h = 160, 160, 36
+        """Inicializa los botones de control de variables y operaciones."""
+        cx = self.controls_rect.x
+        cy = self.controls_rect.y
 
-        # Fila 1
+        # FILA 1: Botones de Variables Numéricas (x = cx + 16, y = cy + 58)
+        # Grupo A: Presupuesto Lagrange
+        btn_bud_dec = UIActionButton(
+            rect=(cx + 16, cy + 58, 115, 34),
+            text="[-] 25 kW",
+            font=self.fonts["regular"],
+            callback=self._dec_budget,
+            bg_color=(35, 42, 54)
+        )
+        btn_bud_inc = UIActionButton(
+            rect=(cx + 137, cy + 58, 115, 34),
+            text="[+] 25 kW",
+            font=self.fonts["regular"],
+            callback=self._inc_budget,
+            bg_color=(35, 42, 54)
+        )
+
+        # Grupo B: Tráfico Poisson
+        btn_traf_dec = UIActionButton(
+            rect=(cx + 276, cy + 58, 115, 34),
+            text="[-] 2 pkt/s",
+            font=self.fonts["regular"],
+            callback=self._dec_traffic,
+            bg_color=(35, 42, 54)
+        )
+        btn_traf_inc = UIActionButton(
+            rect=(cx + 397, cy + 58, 115, 34),
+            text="[+] 2 pkt/s",
+            font=self.fonts["regular"],
+            callback=self._inc_traffic,
+            bg_color=(35, 42, 54)
+        )
+
+        # Grupo C: Temperatura Target
+        btn_temp_dec = UIActionButton(
+            rect=(cx + 532, cy + 58, 115, 34),
+            text="[-] 2 C",
+            font=self.fonts["regular"],
+            callback=self._dec_target_temp,
+            bg_color=(35, 42, 54)
+        )
+        btn_temp_inc = UIActionButton(
+            rect=(cx + 653, cy + 58, 115, 34),
+            text="[+] 2 C",
+            font=self.fonts["regular"],
+            callback=self._inc_target_temp,
+            bg_color=(35, 42, 54)
+        )
+
+        # FILA 2: Acciones del Sistema y Contingencia (y = cy + 104)
+        act_w = 175
         btn_pause = UIActionButton(
-            rect=(start_x, btn_y, w1, h),
+            rect=(cx + 16, cy + 104, act_w, 36),
             text="Pausa / Reanudar [ESP]",
             font=self.fonts["regular"],
             callback=self._toggle_pause,
@@ -87,43 +140,74 @@ class DataCenterDashboardApp:
         )
 
         btn_fail = UIActionButton(
-            rect=(start_x + w1 + 10, btn_y, w1, h),
+            rect=(cx + 203, cy + 104, act_w, 36),
             text="Falla Router [F]",
             font=self.fonts["regular"],
             callback=self._trigger_failure,
-            bg_color=(50, 20, 25)
+            bg_color=(54, 24, 28)
         )
 
         btn_burst = UIActionButton(
-            rect=(start_x + (w1 * 2) + 20, btn_y, 160, h),
-            text="Ráfaga Tráfico [T]",
+            rect=(cx + 390, cy + 104, act_w, 36),
+            text="Rafaga Trafico [T]",
             font=self.fonts["regular"],
             callback=self._inject_traffic_burst,
-            bg_color=(35, 45, 60)
+            bg_color=(32, 45, 62)
         )
 
-        # Fila 2
         btn_recover = UIActionButton(
-            rect=(start_x, btn_y + h + 8, w1, h),
+            rect=(cx + 577, cy + 104, 180, 36),
             text="Reparar Nodos [R]",
             font=self.fonts["regular"],
             callback=self._recover_nodes,
-            bg_color=(25, 45, 30)
+            bg_color=(25, 48, 32)
         )
 
+        # FILA 3: Generación Ejecutiva de Reporte PDF + IA (y = cy + 152)
         btn_pdf = UIActionButton(
-            rect=(start_x + w1 + 10, btn_y + h + 8, 330, h),
-            text="EXPORTAR REPORTE PDF + IA [P]",
+            rect=(cx + 16, cy + 152, 741, 44),
+            text="EXPORTAR REPORTE EJECUTIVO PDF + AUDITORIA IA [P]",
             font=self.fonts["header"],
             callback=self._generate_pdf_report,
-            bg_color=(60, 30, 75)
+            bg_color=(68, 34, 88),
+            text_color=(255, 235, 120)
         )
 
-        self.buttons.extend([btn_pause, btn_fail, btn_burst, btn_recover, btn_pdf])
+        self.buttons.extend([
+            btn_bud_dec, btn_bud_inc,
+            btn_traf_dec, btn_traf_inc,
+            btn_temp_dec, btn_temp_inc,
+            btn_pause, btn_fail, btn_burst, btn_recover,
+            btn_pdf
+        ])
+
+    def _inc_budget(self) -> None:
+        val = self.simulation.adjust_power_budget(+25.0)
+        self._set_toast(f"Presupuesto Lagrange aumentado a {val:.1f} kW")
+
+    def _dec_budget(self) -> None:
+        val = self.simulation.adjust_power_budget(-25.0)
+        self._set_toast(f"Presupuesto Lagrange reducido a {val:.1f} kW")
+
+    def _inc_traffic(self) -> None:
+        val = self.simulation.adjust_arrival_rate(+2.0)
+        self._set_toast(f"Tasa de trafico lambda aumentada a {val:.1f} pkt/s")
+
+    def _dec_traffic(self) -> None:
+        val = self.simulation.adjust_arrival_rate(-2.0)
+        self._set_toast(f"Tasa de trafico lambda reducida a {val:.1f} pkt/s")
+
+    def _inc_target_temp(self) -> None:
+        val = self.simulation.adjust_target_temperature(+2.0)
+        self._set_toast(f"Temp objetivo de refrigeracion aumentada a {val:.1f} C")
+
+    def _dec_target_temp(self) -> None:
+        val = self.simulation.adjust_target_temperature(-2.0)
+        self._set_toast(f"Temp objetivo de refrigeracion reducida a {val:.1f} C")
 
     def _toggle_pause(self) -> None:
         paused = self.simulation.toggle_pause()
-        self._set_toast("Simulación Pausada" if paused else "Simulación Reanudada")
+        self._set_toast("Simulacion Pausada" if paused else "Simulacion Reanudada")
 
     def _trigger_failure(self) -> None:
         """Inyecta una falla manual en un router para forzar el re-enrutamiento dinámico con DP."""
@@ -132,9 +216,9 @@ class DataCenterDashboardApp:
         if active:
             target = random.choice(active)
             self.simulation.failure_model.trigger_manual_failure(target)
-            self._set_toast(f"¡Falla forzada en {target}! DP recalculando ruta...")
+            self._set_toast(f"Falla forzada en {target}! DP recalculando ruta...")
         else:
-            self._set_toast("Todos los routers vulnerables ya están fuera de servicio.")
+            self._set_toast("Todos los routers vulnerables ya estan fuera de servicio.")
 
     def _recover_nodes(self) -> None:
         """Restaura todos los nodos caídos."""
@@ -149,11 +233,11 @@ class DataCenterDashboardApp:
             self.simulation.traffic_generator.action = self.simulation.env.process(
                 self.simulation.traffic_generator._run_generator()
             )
-        self._set_toast("Ráfaga de tráfico inyectada (+8 paquetes/s)")
+        self._set_toast("Rafaga de trafico inyectada (+8 paquetes/s)")
 
     def _generate_pdf_report(self) -> None:
         """Genera el reporte PDF y consulta la IA."""
-        self._set_toast("Generando auditoría PDF y consultando IA...")
+        self._set_toast("Generando auditoria PDF y consultando IA...")
         try:
             snapshot = self.simulation.get_snapshot()
             pdf_path = self.pdf_generator.generate_report(snapshot)
@@ -165,6 +249,38 @@ class DataCenterDashboardApp:
     def _set_toast(self, msg: str) -> None:
         self.status_toast = msg
         self.status_toast_timer = time.time()
+
+    def _draw_controls_panel(self, surface: pygame.Surface) -> None:
+        """Dibuja el panel de control inferior derecho con etiquetas en vivo más grandes y destacadas."""
+        r = self.controls_rect
+        pygame.draw.rect(surface, (18, 22, 28), r, border_radius=8)
+        pygame.draw.rect(surface, (48, 54, 61), r, width=1, border_radius=8)
+
+        # Título de la sección
+        lbl_title = self.fonts["header"].render("PANEL DE CONTROL DE VARIABLES Y OPERACIONES", True, TEXT_PRIMARY)
+        surface.blit(lbl_title, (r.x + 16, r.y + 8))
+
+        # Etiquetas en vivo de las variables más grandes (var_label 14pt bold)
+        lbl_bud = self.fonts["var_label"].render(
+            f"Presupuesto Lagrange: {self.config.power_budget_total:.0f} kW",
+            True,
+            (255, 215, 0)
+        )
+        surface.blit(lbl_bud, (r.x + 16, r.y + 34))
+
+        lbl_traf = self.fonts["var_label"].render(
+            f"Trafico lambda: {self.config.simulation_defaults.arrival_rate_lambda:.1f} pkt/s",
+            True,
+            (88, 166, 255)
+        )
+        surface.blit(lbl_traf, (r.x + 276, r.y + 34))
+
+        lbl_temp = self.fonts["var_label"].render(
+            f"Temp Target: {self.config.servers[0].target_temp:.1f} C",
+            True,
+            (219, 97, 162)
+        )
+        surface.blit(lbl_temp, (r.x + 532, r.y + 34))
 
     def run(self) -> None:
         """Bucle interactivo principal."""
@@ -188,13 +304,25 @@ class DataCenterDashboardApp:
                         self._inject_traffic_burst()
                     elif event.key == pygame.K_p:
                         self._generate_pdf_report()
+                    # Modificación dinámica de variables por teclado
+                    elif event.key in (pygame.K_PLUS, pygame.K_KP_PLUS, pygame.K_EQUALS):
+                        self._inc_budget()
+                    elif event.key in (pygame.K_MINUS, pygame.K_KP_MINUS):
+                        self._dec_budget()
+                    elif event.key == pygame.K_UP:
+                        self._inc_traffic()
+                    elif event.key == pygame.K_DOWN:
+                        self._dec_traffic()
+                    elif event.key == pygame.K_PAGEUP:
+                        self._inc_target_temp()
+                    elif event.key == pygame.K_PAGEDOWN:
+                        self._dec_target_temp()
 
                 # Delegar a botones
                 for btn in self.buttons:
                     btn.handle_event(event)
 
             # 2. Actualización de la Simulación SimPy
-            # Avanzamos la simulación temporal en proporción al delta time real
             self.simulation.advance_time(dt * 1.5)
             snapshot = self.simulation.get_snapshot()
 
@@ -211,16 +339,26 @@ class DataCenterDashboardApp:
             # Gráficas de Gradiente y Lagrange
             self.charts_renderer.draw(self.screen, snapshot)
 
-            # Botones de Acción
+            # Panel de Control y Botones
+            self._draw_controls_panel(self.screen)
             for btn in self.buttons:
                 btn.draw(self.screen)
 
-            # Toast flotante de estado
+            # Barra informativa permanente de atajos para cambiar variables
+            footer_rect = pygame.Rect(20, WINDOW_HEIGHT - 30, WINDOW_WIDTH - 40, 24)
+            pygame.draw.rect(self.screen, (16, 20, 28), footer_rect, border_radius=4)
+            pygame.draw.rect(self.screen, (38, 48, 64), footer_rect, width=1, border_radius=4)
+            footer_txt = "CONTROLES: Botones en pantalla o Teclado: [+/-] Presupuesto | [UP/DOWN] Trafico | [PgUp/PgDn] Temp Target | [F] Falla | [R] Reparar | [P] PDF"
+            f_surf = self.fonts["small"].render(footer_txt, True, (139, 148, 158))
+            self.screen.blit(f_surf, (footer_rect.x + 12, footer_rect.y + 4))
+
+            # Toast flotante de estado por encima de la barra
             if self.status_toast and (time.time() - self.status_toast_timer < 4.0):
-                toast_rect = pygame.Rect(20, WINDOW_HEIGHT - 30, WINDOW_WIDTH - 40, 24)
+                toast_rect = pygame.Rect(20, WINDOW_HEIGHT - 60, WINDOW_WIDTH - 40, 26)
                 pygame.draw.rect(self.screen, (24, 30, 42), toast_rect, border_radius=4)
-                t_surf = self.fonts["mono_bold"].render(f"🔔 {self.status_toast}", True, (255, 215, 0))
-                self.screen.blit(t_surf, (toast_rect.x + 10, toast_rect.y + 4))
+                pygame.draw.rect(self.screen, (255, 215, 0), toast_rect, width=1, border_radius=4)
+                t_surf = self.fonts["mono_bold"].render(f"[*] {self.status_toast}", True, (255, 215, 0))
+                self.screen.blit(t_surf, (toast_rect.x + 12, toast_rect.y + 5))
 
             pygame.display.flip()
 
