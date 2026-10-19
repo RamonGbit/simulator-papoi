@@ -204,6 +204,12 @@ class PDFReportGenerator:
             f"resuelta analíticamente mediante ∇L = 0. Multiplicador de Lagrange obtenido: <b>λ* = {snapshot.lagrange_lambda:.4f}</b>.",
             body_style
         ))
+        elements.append(Paragraph(
+            "<b>Modelo Multivariable y Matriz Hessiana (Criterio de Sylvester):</b> Función de consumo conjunto CPU/Voltaje "
+            "<i>E(f, v) = 4f² + 6v² - 2fv - 24f - 30v + 100</i>. Matriz Hessiana H evaluada con menores principales "
+            "<b>Δ1 = 8.00 > 0 y Δ2 = det(H) = 92.00 > 0</b>, certificando formalmente un <b>Mínimo Local Estricto</b>.",
+            body_style
+        ))
         elements.append(Spacer(1, 10))
 
         # Sección 4: Inteligencia Artificial

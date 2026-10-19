@@ -22,6 +22,8 @@ from src.ui.components.button import UIActionButton
 from src.ui.renderers.network_view import NetworkTopologyRenderer
 from src.ui.renderers.chart_view import RealtimeChartsRenderer
 from src.ui.renderers.metrics_hud import MetricsHUDRenderer
+from src.ui.renderers.nonlinear_lab_view import NonLinearLabRenderer
+
 
 
 class DataCenterDashboardApp:
@@ -71,7 +73,14 @@ class DataCenterDashboardApp:
         # Panel de Control Inferior Derecho
         self.controls_rect = pygame.Rect(790, 660, 790, 230)
 
-        # 4. Botones de Control Interactivo (Variables y Operaciones)
+        # 4. Laboratorio de Programación No Lineal (Modal / Vista HUD)
+        self.show_nonlinear_lab: bool = False
+        self.nonlinear_lab_renderer = NonLinearLabRenderer(
+            rect=(80, 40, WINDOW_WIDTH - 160, WINDOW_HEIGHT - 80),
+            fonts=self.fonts
+        )
+
+        # 5. Botones de Control Interactivo (Variables y Operaciones)
         self.buttons: list[UIActionButton] = []
         self._init_buttons()
 
@@ -163,10 +172,19 @@ class DataCenterDashboardApp:
             bg_color=(25, 48, 32)
         )
 
-        # FILA 3: Generación Ejecutiva de Reporte PDF + IA (y = cy + 152)
+        # FILA 3: Laboratorio No Lineal y Reporte PDF (y = cy + 152)
+        btn_nonlin = UIActionButton(
+            rect=(cx + 16, cy + 152, 360, 44),
+            text="LABORATORIO NO LINEAL [N]",
+            font=self.fonts["header"],
+            callback=self._toggle_nonlinear_lab,
+            bg_color=(20, 60, 95),
+            text_color=(120, 220, 255)
+        )
+
         btn_pdf = UIActionButton(
-            rect=(cx + 16, cy + 152, 741, 44),
-            text="EXPORTAR REPORTE EJECUTIVO PDF + AUDITORIA IA [P]",
+            rect=(cx + 386, cy + 152, 371, 44),
+            text="EXPORTAR REPORTE PDF [P]",
             font=self.fonts["header"],
             callback=self._generate_pdf_report,
             bg_color=(68, 34, 88),
@@ -178,8 +196,16 @@ class DataCenterDashboardApp:
             btn_traf_dec, btn_traf_inc,
             btn_temp_dec, btn_temp_inc,
             btn_pause, btn_fail, btn_burst, btn_recover,
-            btn_pdf
+            btn_nonlin, btn_pdf
         ])
+
+    def _toggle_nonlinear_lab(self) -> None:
+        self.show_nonlinear_lab = not self.show_nonlinear_lab
+        if self.show_nonlinear_lab:
+            self._set_toast("Laboratorio No Lineal Abierto (Presiona [1-4] para alternar metodo o [N] para salir)")
+        else:
+            self._set_toast("Regresando a Topologia de Red")
+
 
     def _inc_budget(self) -> None:
         val = self.simulation.adjust_power_budget(+25.0)
@@ -291,36 +317,49 @@ class DataCenterDashboardApp:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.is_running = False
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
-                        self.is_running = False
-                    elif event.key == pygame.K_SPACE:
-                        self._toggle_pause()
-                    elif event.key == pygame.K_f:
-                        self._trigger_failure()
-                    elif event.key == pygame.K_r:
-                        self._recover_nodes()
-                    elif event.key == pygame.K_t:
-                        self._inject_traffic_burst()
-                    elif event.key == pygame.K_p:
-                        self._generate_pdf_report()
-                    # Modificación dinámica de variables por teclado
-                    elif event.key in (pygame.K_PLUS, pygame.K_KP_PLUS, pygame.K_EQUALS):
-                        self._inc_budget()
-                    elif event.key in (pygame.K_MINUS, pygame.K_KP_MINUS):
-                        self._dec_budget()
-                    elif event.key == pygame.K_UP:
-                        self._inc_traffic()
-                    elif event.key == pygame.K_DOWN:
-                        self._dec_traffic()
-                    elif event.key == pygame.K_PAGEUP:
-                        self._inc_target_temp()
-                    elif event.key == pygame.K_PAGEDOWN:
-                        self._dec_target_temp()
+                elif self.show_nonlinear_lab:
+                    # Modo Modal: Laboratorio No Lineal activo
+                    if event.type == pygame.KEYDOWN:
+                        if event.key in (pygame.K_ESCAPE, pygame.K_n):
+                            self.show_nonlinear_lab = False
+                            self._set_toast("Regresando al Datacenter")
+                        else:
+                            self.nonlinear_lab_renderer.handle_key(event.key)
+                    elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                        self.nonlinear_lab_renderer.handle_click(event.pos)
+                else:
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_ESCAPE:
+                            self.is_running = False
+                        elif event.key == pygame.K_n:
+                            self._toggle_nonlinear_lab()
+                        elif event.key == pygame.K_SPACE:
+                            self._toggle_pause()
+                        elif event.key == pygame.K_f:
+                            self._trigger_failure()
+                        elif event.key == pygame.K_r:
+                            self._recover_nodes()
+                        elif event.key == pygame.K_t:
+                            self._inject_traffic_burst()
+                        elif event.key == pygame.K_p:
+                            self._generate_pdf_report()
+                        # Modificación dinámica de variables por teclado
+                        elif event.key in (pygame.K_PLUS, pygame.K_KP_PLUS, pygame.K_EQUALS):
+                            self._inc_budget()
+                        elif event.key in (pygame.K_MINUS, pygame.K_KP_MINUS):
+                            self._dec_budget()
+                        elif event.key == pygame.K_UP:
+                            self._inc_traffic()
+                        elif event.key == pygame.K_DOWN:
+                            self._dec_traffic()
+                        elif event.key == pygame.K_PAGEUP:
+                            self._inc_target_temp()
+                        elif event.key == pygame.K_PAGEDOWN:
+                            self._dec_target_temp()
 
-                # Delegar a botones
-                for btn in self.buttons:
-                    btn.handle_event(event)
+                    # Delegar a botones
+                    for btn in self.buttons:
+                        btn.handle_event(event)
 
             # 2. Actualización de la Simulación SimPy
             self.simulation.advance_time(dt * 1.5)
@@ -344,11 +383,15 @@ class DataCenterDashboardApp:
             for btn in self.buttons:
                 btn.draw(self.screen)
 
+            # Si el laboratorio no lineal está activo, renderizar el overlay
+            if self.show_nonlinear_lab:
+                self.nonlinear_lab_renderer.render(self.screen)
+
             # Barra informativa permanente de atajos para cambiar variables
             footer_rect = pygame.Rect(20, WINDOW_HEIGHT - 30, WINDOW_WIDTH - 40, 24)
             pygame.draw.rect(self.screen, (16, 20, 28), footer_rect, border_radius=4)
             pygame.draw.rect(self.screen, (38, 48, 64), footer_rect, width=1, border_radius=4)
-            footer_txt = "CONTROLES: Botones en pantalla o Teclado: [+/-] Presupuesto | [UP/DOWN] Trafico | [PgUp/PgDn] Temp Target | [F] Falla | [R] Reparar | [P] PDF"
+            footer_txt = "CONTROLES: [N] Laboratorio No Lineal | [+/-] Presupuesto | [UP/DOWN] Trafico | [PgUp/PgDn] Temp | [F] Falla | [R] Reparar | [P] PDF"
             f_surf = self.fonts["small"].render(footer_txt, True, (139, 148, 158))
             self.screen.blit(f_surf, (footer_rect.x + 12, footer_rect.y + 4))
 

@@ -47,7 +47,8 @@ simulator-papoi/
 │   │   ├── dp_knapsack.py        # Módulo 1.2: Mochila 0/1 (Volumen-Carga)
 │   │   ├── thermal_analysis.py   # Módulo 2.1: Cálculo simbólico (SymPy)
 │   │   ├── cooling_gradient.py   # Módulo 2.2: Descenso de gradiente en ventiladores
-│   │   └── power_lagrange.py     # Módulo 2.3: Multiplicadores de Lagrange multivariable
+│   │   ├── power_lagrange.py     # Módulo 2.3: Multiplicadores de Lagrange multivariable
+│   │   └── nonlinear_solver.py   # Módulo 2.4: Suite Universal y Matriz Hessiana (Corte 5)
 │   │
 │   ├── simulation/               # Motor de simulación estocástica (SimPy)
 │   │   ├── engine.py             # Coordinador de eventos discretos y recursos
@@ -58,7 +59,7 @@ simulator-papoi/
 │   │   ├── app.py                # Bucle interactivo principal a 60 FPS
 │   │   ├── theme.py              # Paleta visual NOC Dark Mode y tipografías
 │   │   ├── components/button.py  # Botones interactivos con eventos
-│   │   └── renderers/            # Renderizadores de topología, gráficas y HUD
+│   │   └── renderers/            # Renderizadores de topología, gráficas, HUD y Laboratorio No Lineal
 │   │
 │   └── reporting/                # Auditoría y persistencia de reportes
 │       ├── ai_advisor.py         # Integración con Google Gemini AI (+ fallback offline)
@@ -66,6 +67,7 @@ simulator-papoi/
 │
 ├── tests/                        # Suite de pruebas unitarias automáticas
 │   ├── test_math_models.py       # Pruebas de DP, Mochila, SymPy, Gradiente y Lagrange
+│   ├── test_nonlinear_solver.py  # Pruebas de Hessiano, Sylvester, 1D y solvers libres
 │   └── test_simulation.py        # Pruebas del motor SimPy y snapshots
 │
 └── reports/                      # Directorio de reportes PDF generados
@@ -146,6 +148,7 @@ Si deseas que los reportes consulten directamente la API de Google Gemini en la 
 python src/main.py
 ```
 **Controles del Dashboard:**
+- `[N]`: **Abrir / Cerrar el Laboratorio de Programación No Lineal** (Modal visual con pestañas interactivas para los 4 modelos de Corte 5).
 - `[ESPACIO]`: Pausar / Reanudar la simulación temporal de SimPy.
 - `[+]` / `[-]`: **Aumentar / Disminuir el Presupuesto Eléctrico de Lagrange** en tiempo real (observa en vivo cómo se recalculan las barras de energía y el multiplicador $\lambda^*$).
 - `[▲]` / `[▼]`: **Aumentar / Reducir la tasa de tráfico Poisson $\lambda$** (observa cómo se saturan o vacían las colas de paquetes en los routers).
@@ -154,7 +157,7 @@ python src/main.py
 - `[R]`: Reparar y restablecer todos los nodos caídos.
 - `[T]`: Inyectar una ráfaga de tráfico entrante.
 - `[P]`: Generar y exportar el informe ejecutivo en PDF con análisis de IA a la carpeta `reports/`.
-- `[ESC]`: Salir del simulador.
+- `[ESC]`: Salir del simulador o cerrar el modal activo.
 
 ### 5.2 Modificación de Variables por Comandos y Asistente Interactivo (Pauta 6)
 El sistema permite alterar y validar cualquier variable matemática o de simulación antes de iniciar:
@@ -177,8 +180,6 @@ python src/main.py --target-temp 55.0 --learning-rate 0.12
 Para demostrar la **independencia de cada módulo** requerida por las pautas:
 ```bash
 python src/main.py --cli
-# O con parámetros personalizados:
-python src/main.py --budget 500.0 --cli
 ```
 Imprime en pantalla la resolución paso a paso de cada modelo matemático:
 - Enrutamiento DP con y sin congestión.
@@ -186,15 +187,27 @@ Imprime en pantalla la resolución paso a paso de cada modelo matemático:
 - Derivadas analíticas de SymPy y punto de inflexión.
 - Convergencia del Descenso de Gradiente.
 - Sistema de Lagrange y cálculo del multiplicador óptimo $\lambda^*$.
+- **Módulo Multivariable:** Vector gradiente $\nabla E$, Matriz Hessiana $H$ y Criterio de Sylvester.
 
-### 5.4 Ejecutar Suite de Pruebas Unitarias
+### 5.4 Laboratorio y Calculadora de Modelos No Lineales (Corte 5)
+Para evaluar los 4 modelos de programación no lineal teóricos de la cátedra:
+```bash
+# A. Suite completa de demostración de los 4 métodos:
+python src/main.py --nonlinear   # o: python src/main.py -nl
+
+# B. Calculadora interactiva para ingresar ecuaciones libres del usuario/profesor:
+python src/main.py --calc        # o: python src/main.py --solve
+```
+
+### 5.5 Ejecutar Suite de Pruebas Unitarias
 ```bash
 pytest -v
 ```
-Ejecuta las pruebas automáticas para certificar 100% de éxito en todos los algoritmos.
+Ejecuta las **13 pruebas automáticas** para certificar 100% de éxito en todos los algoritmos (tanto de simulación como de cálculo no lineal).
 
-### 5.5 Cargar una Topología o Configuración Personalizada
+### 5.6 Cargar una Topología o Configuración Personalizada
 ```bash
 python src/main.py --config config/default_topology.json
 ```
 Valida la integridad de los datos (IDs únicos, conexiones válidas, capacidades estrictamente positivas) antes de iniciar.
+

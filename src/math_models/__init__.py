@@ -7,6 +7,13 @@ from .dp_knapsack import DPKnapsackScheduler, TaskItem, KnapsackResult
 from .thermal_analysis import ThermalAnalyzer1D, ThermalCriticalPoints
 from .cooling_gradient import GradientDescentCooling, CoolingOptimizationResult
 from .power_lagrange import LagrangePowerBudget, LagrangeOptimizationResult
+from .nonlinear_solver import (
+    UnivariateOptimizer,
+    MultivariateHessianOptimizer,
+    GradientDescentOptimizer,
+    ConstrainedLagrangeOptimizer,
+    NonLinearLabSuite
+)
 
 __all__ = [
     "DPRoutingOptimizer",
@@ -19,5 +26,11 @@ __all__ = [
     "GradientDescentCooling",
     "CoolingOptimizationResult",
     "LagrangePowerBudget",
-    "LagrangeOptimizationResult"
+    "LagrangeOptimizationResult",
+    "UnivariateOptimizer",
+    "MultivariateHessianOptimizer",
+    "GradientDescentOptimizer",
+    "ConstrainedLagrangeOptimizer",
+    "NonLinearLabSuite"
 ]
+

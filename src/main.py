@@ -13,6 +13,14 @@ import sys
 import argparse
 from pathlib import Path
 
+# Configurar salida UTF-8 para compatibilidad universal de caracteres matemáticos en terminales Windows
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 # Asegurar que el directorio raíz esté en sys.path
 root_dir = Path(__file__).resolve().parent.parent
 if str(root_dir) not in sys.path:
@@ -24,7 +32,15 @@ from src.math_models.dp_knapsack import DPKnapsackScheduler, TaskItem
 from src.math_models.thermal_analysis import ThermalAnalyzer1D
 from src.math_models.cooling_gradient import GradientDescentCooling
 from src.math_models.power_lagrange import LagrangePowerBudget, ClusterEnergySpec
+from src.math_models.nonlinear_solver import (
+    UnivariateOptimizer,
+    MultivariateHessianOptimizer,
+    GradientDescentOptimizer,
+    ConstrainedLagrangeOptimizer,
+    NonLinearLabSuite
+)
 from src.simulation.engine import DataCenterSimulation
+
 from src.reporting.pdf_generator import PDFReportGenerator
 
 
@@ -129,9 +145,171 @@ def run_cli_demo(config: AppConfig) -> None:
     for cid, pot in l_res.cluster_allocations.items():
         print(f"    [+] Clúster {cid.upper()}: {pot} kW")
     print(f"• Rendimiento Total Máximo: {l_res.total_performance:.2f} unidades")
+
+    # ---------------------------------------------------------
+    # MÓDULO 2.4: Optimización Multivariable y Matriz Hessiana (PLUS / EXTRA)
+    # ---------------------------------------------------------
+    print("\n" + "=" * 50)
+    print("[MODULO 2.4] MODELO MULTIVARIABLE Y MATRIZ HESSIANA (PLUS/EXTRA)")
+    print("=" * 50)
+    preset_multi = NonLinearLabSuite.get_datacenter_presets()["cpu_efficiency_multivariate"]
+    multi_opt = MultivariateHessianOptimizer(preset_multi["expr"], preset_multi["vars"])
+    m_res = multi_opt.analyze()
+    print(f"* Funcion Multivariable E(f, v): {m_res.expression_str}")
+    print(f"* Vector Gradiente grad(E) = [dE/df, dE/dv]:")
+    for var, g_expr in m_res.gradient_str.items():
+        print(f"    -> dE/d{var} = {g_expr}")
+    print(f"* Matriz Hessiana Simbolica H:")
+    for row in m_res.hessian_matrix_symbolic:
+        print(f"    [ {row[0]:<12} {row[1]:<12} ]")
+    if m_res.critical_points:
+        cp = m_res.critical_points[0]
+        print(f"* Punto Critico Analitico: f = {cp.point_dict.get('f')} GHz, v = {cp.point_dict.get('v')} V")
+        print(f"* Menores Principales Lideres: Delta1 = {cp.principal_minors[0]}, Delta2 = det(H) = {cp.principal_minors[1]}")
+        print(f"* Clasificacion Formal (Sylvester): {cp.classification.upper()} (Disipacion minima)")
+
     print("\n" + "=" * 75)
-    print("  TODOS LOS MÓDULOS EVALUADOS Y FUNCIONANDO CON ÉXITO.")
+    print("  TODOS LOS MODULOS EVALUADOS Y FUNCIONANDO CON EXITO.")
     print("=" * 75)
+
+
+def run_nonlinear_suite() -> None:
+    """Ejecuta la suite completa de los 4 métodos de Programación No Lineal."""
+    print("=" * 75)
+    print("  LABORATORIO DE PROGRAMACION NO LINEAL -- METODOS CUANTITATIVOS (UJAP)")
+    print("  DataStream Networks: Demostracion Completa de Modelos No Lineales")
+    print("=" * 75)
+
+    presets = NonLinearLabSuite.get_datacenter_presets()
+
+    # 1. Univariable
+    print("\n" + "#" * 60)
+    print("METODO 1: MODELO DE UNA VARIABLE (EXTREMOS E INFLEXION)")
+    print("#" * 60)
+    u_p = presets["thermal_1d"]
+    u_opt = UnivariateOptimizer(u_p["expr"], var_name=u_p["var"])
+    u_res = u_opt.analyze(domain_min=0.0, domain_max=1.0)
+    print(f"* Funcion Objetivo: f({u_p['var']}) = {u_res.expression_str}")
+    print(f"* Primera Derivada: f'({u_p['var']}) = {u_res.first_derivative_str}")
+    print(f"* Segunda Derivada: f''({u_p['var']}) = {u_res.second_derivative_str}")
+    print("* Puntos de Inflexion Criticos (d2f/dx2 = 0):")
+    for pt in u_res.inflection_points:
+        print(f"    -> Carga {pt.x*100:.1f}%, Temp = {pt.f_x:.2f} C [{pt.classification}]")
+
+    # 2. Multivariable con Matriz Hessiana
+    print("\n" + "#" * 60)
+    print("METODO 2: MODELO MULTIVARIABLE Y CLASIFICACION CON HESSIANO")
+    print("#" * 60)
+    m_p = presets["cpu_efficiency_multivariate"]
+    m_opt = MultivariateHessianOptimizer(m_p["expr"], m_p["vars"])
+    m_res = m_opt.analyze()
+    print(f"* Funcion Objetivo: f({', '.join(m_p['vars'])}) = {m_res.expression_str}")
+    print(f"* Vector Gradiente grad(f):")
+    for v, g in m_res.gradient_str.items():
+        print(f"    df/d{v} = {g}")
+    print(f"* Matriz Hessiana H:")
+    for row in m_res.hessian_matrix_symbolic:
+        print(f"    [ {'   '.join(row)} ]")
+    if m_res.critical_points:
+        cp = m_res.critical_points[0]
+        print(f"* Punto Critico: {cp.point_dict} con f(x*) = {cp.f_val}")
+        print(f"* Menores Principales: Delta1 = {cp.principal_minors[0]}, Delta2 = det(H) = {cp.principal_minors[1]}")
+        print(f"* Dictamen Sylvester: {cp.classification.upper()}")
+
+    # 3. Método del Gradiente
+    print("\n" + "#" * 60)
+    print("METODO 3: METODO DEL GRADIENTE DESCENDENTE (NUMERICO)")
+    print("#" * 60)
+    g_p = presets["cooling_gradient"]
+    g_opt = GradientDescentOptimizer(g_p["expr"], g_p["vars"], learning_rate=g_p["lr"], tolerance=1e-3, max_iterations=60)
+    g_res = g_opt.optimize(g_p["initial"], mode="minimize")
+    print(f"* Funcion de Costo: J(P) = {g_p['expr']}")
+    print(f"* Punto Inicial: {g_res.initial_point} | Tasa alfa: {g_p['lr']}")
+    print(f"* Convergencia: {g_res.converged} en {g_res.iterations} iteraciones")
+    print(f"* Punto Optimo: {g_res.optimal_point} | Costo Minimo: {g_res.optimal_val}")
+    print("* Muestra de Iteraciones:")
+    for it in g_res.history[:3] + g_res.history[-2:]:
+        print(f"    Paso {it.step:>2}: P = {it.coords['P']:.2f} W, Costo = {it.f_val:.4f}, ||grad(J)|| = {it.grad_norm:.6f}")
+
+    # 4. Multiplicadores de Lagrange
+    print("\n" + "#" * 60)
+    print("METODO 4: MULTIPLICADORES DE LAGRANGE (CON RESTRICCIONES)")
+    print("#" * 60)
+    l_p = presets["cluster_lagrange"]
+    l_opt = ConstrainedLagrangeOptimizer(l_p["objective"], l_p["constraints"], l_p["vars"])
+    l_res = l_opt.solve(mode="maximize")
+    print(f"* Funcion Rendimiento: R(P) = {l_p['objective']}")
+    print(f"* Restriccion Presupuestaria: {l_p['constraints'][0]} = 0")
+    print(f"* Punto Optimo: {l_res.best_point}")
+    print(f"* Multiplicadores lambda*: {l_res.lambda_multipliers[0] if l_res.lambda_multipliers else 'N/A'}")
+    print(f"* Rendimiento Maximo: {l_res.best_value} unidades")
+    print("\n" + "=" * 75)
+
+
+def run_interactive_calculator() -> None:
+    """Calculadora interactiva en terminal para evaluar ecuaciones no lineales personalizadas."""
+    print("=" * 75)
+    print("  CALCULADORA DE MODELOS NO LINEALES (RESOLUCIÓN PERSONALIZADA)")
+    print("=" * 75)
+    print("Seleccione el tipo de operación no lineal a resolver:")
+    print("  1. Función de 1 Variable (f'(x), f''(x), Extremos e Inflexión)")
+    print("  2. Función Multivariable (Gradiente, Matriz Hessiana y Sylvester)")
+    print("  3. Método del Gradiente Descendente (Iterativo)")
+    print("  4. Multiplicadores de Lagrange (Con Restricción de Igualdad)")
+    print("  0. Salir")
+
+    choice = input("\nIngrese opción [0-4]: ").strip()
+
+    if choice == "1":
+        expr = input("Ingrese f(x) (ej: x**3 - 3*x**2 + 2): ").strip() or "x**3 - 3*x**2 + 2"
+        opt = UnivariateOptimizer(expr, var_name="x")
+        res = opt.analyze()
+        print(f"\n[OK] Función: f(x) = {res.expression_str}")
+        print(f"     f'(x)  = {res.first_derivative_str}")
+        print(f"     f''(x) = {res.second_derivative_str}")
+        print("\nPuntos Estacionarios:")
+        for p in res.stationary_points:
+            print(f"  • x = {p.x}: f(x) = {p.f_x} -> {p.classification}")
+        print("\nPuntos de Inflexión:")
+        for p in res.inflection_points:
+            print(f"  • x = {p.x}: f(x) = {p.f_x} -> Punto de Inflexión")
+
+    elif choice == "2":
+        expr = input("Ingrese f(x, y) (ej: 4*x**2 + 6*y**2 - 2*x*y - 24*x - 30*y + 100): ").strip()
+        if not expr:
+            expr = "4*x**2 + 6*y**2 - 2*x*y - 24*x - 30*y + 100"
+        opt = MultivariateHessianOptimizer(expr, ["x", "y"])
+        res = opt.analyze()
+        print(f"\n[OK] Función: {res.expression_str}")
+        print(f"     ∂f/∂x = {res.gradient_str['x']}")
+        print(f"     ∂f/∂y = {res.gradient_str['y']}")
+        print(f"     Matriz Hessiana Simbólica:")
+        for row in res.hessian_matrix_symbolic:
+            print(f"       [ {row[0]:<10} {row[1]:<10} ]")
+        for cp in res.critical_points:
+            print(f"\nPunto Crítico: {cp.point_dict}")
+            print(f"  • Matriz Hessiana Evaluada: {cp.hessian_matrix_evaluated}")
+            print(f"  • Menores Principales: {cp.principal_minors}")
+            print(f"  • Clasificación (Sylvester): {cp.classification.upper()}")
+
+    elif choice == "3":
+        expr = input("Ingrese f(x, y) a minimizar (ej: (x-3)**2 + (y+2)**2): ").strip() or "(x-3)**2 + (y+2)**2"
+        opt = GradientDescentOptimizer(expr, ["x", "y"], learning_rate=0.1, tolerance=1e-4)
+        res = opt.optimize({"x": 0.0, "y": 0.0}, mode="minimize")
+        print(f"\n[OK] Convergió: {res.converged} en {res.iterations} iteraciones")
+        print(f"     Punto Óptimo: {res.optimal_point}")
+        print(f"     Valor Mínimo: {res.optimal_val}")
+
+    elif choice == "4":
+        obj = input("Función Objetivo f(x, y) (ej: 10*x - x**2 + 20*y - 2*y**2): ").strip() or "10*x - x**2 + 20*y - 2*y**2"
+        g = input("Restricción g(x, y) = 0 (ej: x + y - 10): ").strip() or "x + y - 10"
+        opt = ConstrainedLagrangeOptimizer(obj, [g], ["x", "y"])
+        res = opt.solve(mode="maximize")
+        print(f"\n[OK] Lagrangiano: {res.lagrangian_str}")
+        print(f"     Punto Óptimo: {res.best_point}")
+        print(f"     Multiplicador λ*: {res.lambda_multipliers[0] if res.lambda_multipliers else 'N/A'}")
+        print(f"     Valor Máximo: {res.best_value}")
+
 
 
 def generate_direct_report(config: AppConfig) -> None:
@@ -273,6 +451,16 @@ def main() -> None:
         action="store_true",
         help="Genera un reporte técnico ejecutivo en PDF con análisis de IA y finaliza."
     )
+    parser.add_argument(
+        "--nonlinear", "-nl",
+        action="store_true",
+        help="Ejecuta la suite completa de demostración de los 4 métodos de Programación No Lineal."
+    )
+    parser.add_argument(
+        "--calc", "--solve",
+        action="store_true",
+        help="Inicia la calculadora interactiva para resolver ecuaciones no lineales libres del usuario."
+    )
 
     args = parser.parse_args()
 
@@ -318,7 +506,11 @@ def main() -> None:
     if args.interactive:
         config = interactive_config_prompt(config)
 
-    if args.cli:
+    if args.nonlinear:
+        run_nonlinear_suite()
+    elif args.calc:
+        run_interactive_calculator()
+    elif args.cli:
         run_cli_demo(config)
     elif args.report:
         generate_direct_report(config)
