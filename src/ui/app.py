@@ -280,7 +280,8 @@ class DataCenterDashboardApp:
         self._set_toast("Generando auditoria PDF y consultando IA...")
         try:
             snapshot = self.simulation.get_snapshot()
-            pdf_path = self.pdf_generator.generate_report(snapshot)
+            custom_probs = getattr(self.nonlinear_lab_renderer, "custom_saved_problems", [])
+            pdf_path = self.pdf_generator.generate_report(snapshot, custom_problems=custom_probs)
             filename = os.path.basename(pdf_path)
             self._set_toast(f"Reporte generado: reports/{filename}")
         except Exception as e:
@@ -334,11 +335,11 @@ class DataCenterDashboardApp:
                 elif self.show_nonlinear_lab:
                     # Modo Modal: Laboratorio No Lineal activo
                     if event.type == pygame.KEYDOWN:
-                        if event.key in (pygame.K_ESCAPE, pygame.K_n):
-                            self.show_nonlinear_lab = False
-                            self._set_toast("Regresando al Datacenter")
-                        else:
-                            self.nonlinear_lab_renderer.handle_key(event.key)
+                        handled = self.nonlinear_lab_renderer.handle_key_event(event)
+                        if not handled:
+                            if event.key in (pygame.K_ESCAPE, pygame.K_n):
+                                self.show_nonlinear_lab = False
+                                self._set_toast("Regresando al Datacenter")
                     elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                         self.nonlinear_lab_renderer.handle_click(event.pos)
                         if getattr(self.nonlinear_lab_renderer, "should_close", False):

@@ -39,10 +39,14 @@ class PDFReportGenerator:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.ai_consultant = AIConsultant()
 
-    def generate_report(self, snapshot: DataCenterSnapshot) -> str:
+    def generate_report(self, snapshot: DataCenterSnapshot, custom_problems: Optional[List[Dict[str, Any]]] = None) -> str:
         """
         Genera el archivo PDF con todos los resultados de optimización e IA.
         
+        Args:
+            snapshot: Instantánea del estado del centro de datos.
+            custom_problems: Lista opcional de problemas no lineales resueltos por el usuario.
+
         Returns:
             Ruta absoluta del archivo PDF generado.
         """
@@ -204,13 +208,68 @@ class PDFReportGenerator:
             f"resuelta analíticamente mediante ∇L = 0. Multiplicador de Lagrange obtenido: <b>λ* = {snapshot.lagrange_lambda:.4f}</b>.",
             body_style
         ))
+        if snapshot.lagrange_allocation:
+            alloc_details = ", ".join([f"<b>{k.replace('cluster_', '').upper()}</b>: {v:.1f} kW" for k, v in snapshot.lagrange_allocation.items()])
+            elements.append(Paragraph(f"<i>Distribución óptima por clúster:</i> {alloc_details}.", body_style))
         elements.append(Paragraph(
             "<b>Modelo Multivariable y Matriz Hessiana (Criterio de Sylvester):</b> Función de consumo conjunto CPU/Voltaje "
             "<i>E(f, v) = 4f² + 6v² - 2fv - 24f - 30v + 100</i>. Matriz Hessiana H evaluada con menores principales "
-            "<b>Δ1 = 8.00 > 0 y Δ2 = det(H) = 92.00 > 0</b>, certificando formalmente un <b>Mínimo Local Estricto</b>.",
+            "<b>Δ₁ = 8.00 > 0 y Δ₂ = det(H) = 92.00 > 0</b>, certificando formalmente un <b>Mínimo Local Estricto</b>.",
             body_style
         ))
-        elements.append(Spacer(1, 10))
+        elements.append(Spacer(1, 8))
+
+        # Subsección: Problemas Personalizados del Laboratorio No Lineal
+        if custom_problems:
+            elements.append(Paragraph("<b>3.1 Problemas de Optimización Personalizados (Laboratorio Interactivo):</b>", body_style))
+            elements.append(Spacer(1, 4))
+            custom_rows = [
+                [
+                    Paragraph("Modelo", table_header_style),
+                    Paragraph("Objetivo", table_header_style),
+                    Paragraph("Función y Restricción", table_header_style),
+                    Paragraph("Punto Óptimo", table_header_style),
+                    Paragraph("Valor f*", table_header_style),
+                    Paragraph("Dictamen", table_header_style)
+                ]
+            ]
+            for cp in custom_problems:
+                m_type = cp.get("type", "Univariable")
+                goal = cp.get("goal", "Maximizar")
+                expr = cp.get("clean_expr", "")
+                constr = cp.get("clean_constr", "")
+                f_desc = f"<b>f:</b> {expr}"
+                if constr:
+                    if any(op in constr for op in ['<=', '>=', '<', '>', '=']):
+                        f_desc += f"<br/><b>s.a:</b> {constr}"
+                    else:
+                        f_desc += f"<br/><b>s.a:</b> {constr} = 0"
+                pt_str = str(cp.get("best_point_str", "Ver análisis"))
+                val_str = str(cp.get("best_value_str", "-"))
+                verdict = cp.get("verdict", "Resuelto")
+
+                custom_rows.append([
+                    Paragraph(m_type, table_text_style),
+                    Paragraph(goal, table_text_style),
+                    Paragraph(f_desc, table_text_style),
+                    Paragraph(pt_str, table_text_style),
+                    Paragraph(val_str, table_text_style),
+                    Paragraph(verdict, table_text_style)
+                ])
+
+            t_custom = Table(custom_rows, colWidths=[75, 55, 165, 95, 60, 82])
+            t_custom.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#1b4965")),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#cccccc")),
+                ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.HexColor("#f8f9fa"), colors.white]),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+                ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ]))
+            elements.append(t_custom)
+            elements.append(Spacer(1, 8))
+
+        elements.append(Spacer(1, 6))
 
         # Sección 4: Inteligencia Artificial
         elements.append(Paragraph(f"4. Diagnóstico Técnico y Dictamen Estratégico ({ai_provider})", section_style))
