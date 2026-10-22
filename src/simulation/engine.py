@@ -122,6 +122,7 @@ class DataCenterSimulation:
         # Historial para gráficas en tiempo real
         self.cooling_power_history: Dict[str, List[float]] = {s_id: [10.0] for s_id in self.servers}
         self.cooling_cost_history: Dict[str, List[float]] = {s_id: [0.0] for s_id in self.servers}
+        self.thermal_stress_timer: Dict[str, float] = {s_id: 0.0 for s_id in self.servers}
 
         # 5. Generador de Tráfico y Fallas
         target_server_ids = list(self.servers.keys())
@@ -313,9 +314,17 @@ class DataCenterSimulation:
                     analyzer = self.thermal_analyzers[s_id]
                     crit_pts = self.thermal_critical_points[s_id]
                     cooler = self.coolers[s_id]
+                    # 1. Aplicar estrés térmico si está activo
+                    effective_load = server.current_load
+                    if self.thermal_stress_timer.get(s_id, 0.0) > 0.0:
+                        self.thermal_stress_timer[s_id] = max(0.0, self.thermal_stress_timer[s_id] - 0.5)
+                        effective_load = max(effective_load, 0.95)
+                        server.current_load = effective_load
 
-                    # 1. Temperatura base no lineal producida por la carga
-                    t_base = analyzer.evaluate_temp(server.current_load)
+                    # Temperatura base no lineal producida por la carga
+                    t_base = analyzer.evaluate_temp(effective_load)
+                    if self.thermal_stress_timer.get(s_id, 0.0) > 0.0:
+                        t_base += 18.0  # Impulso adicional de choque térmico
 
                     # 2. Paso de descenso de gradiente para ventilador
                     fan_p, cost, grad = cooler.step(t_base)
@@ -389,6 +398,17 @@ class DataCenterSimulation:
                 cooler.target_temp = new_temp
             self.alert_messages.append(f"OBJETIVO TERMICO REFRIGERACION: {new_temp:.1f} C")
             return new_temp
+
+    def trigger_thermal_stress(self, server_id: Optional[str] = None, duration: float = 6.0) -> str:
+        """Inyecta un choque térmico brusco para demostrar en vivo el régimen superlineal y el gradiente."""
+        with self.lock:
+            if server_id is None or server_id not in self.servers:
+                server_id = list(self.servers.keys())[0]
+            self.thermal_stress_timer[server_id] = duration
+            server = self.servers[server_id]
+            server.current_load = 0.95
+            self.alert_messages.append(f"TEST DE ESTRÉS TÉRMICO en {server_id} (+95% carga / +18°C)")
+            return server_id
 
     def get_snapshot(self) -> DataCenterSnapshot:
         """Retorna una instantánea segura del estado para renderizar en Pygame."""

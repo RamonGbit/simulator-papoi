@@ -34,7 +34,7 @@ class DataCenterDashboardApp:
     def __init__(self, config: AppConfig):
         self.config = config
         pygame.init()
-        pygame.display.set_caption("DataStream Networks — Simulador de Optimización para Datacenters (POO)")
+        pygame.display.set_caption("DataStream Papoi Networks — Simulador de Optimización para Datacenters (POO)")
 
         self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
         self.clock = pygame.time.Clock()
@@ -172,9 +172,9 @@ class DataCenterDashboardApp:
             bg_color=(25, 48, 32)
         )
 
-        # FILA 3: Laboratorio No Lineal y Reporte PDF (y = cy + 152)
+        # FILA 3: Laboratorio No Lineal, Test de Estrés y Reporte PDF (y = cy + 152)
         btn_nonlin = UIActionButton(
-            rect=(cx + 16, cy + 152, 360, 44),
+            rect=(cx + 16, cy + 152, 240, 44),
             text="LABORATORIO NO LINEAL [N]",
             font=self.fonts["header"],
             callback=self._toggle_nonlinear_lab,
@@ -182,8 +182,17 @@ class DataCenterDashboardApp:
             text_color=(120, 220, 255)
         )
 
+        btn_stress = UIActionButton(
+            rect=(cx + 266, cy + 152, 230, 44),
+            text="TEST ESTRÉS TÉRMICO [S]",
+            font=self.fonts["header"],
+            callback=self._trigger_thermal_stress,
+            bg_color=(60, 20, 25),
+            text_color=(255, 160, 160)
+        )
+
         btn_pdf = UIActionButton(
-            rect=(cx + 386, cy + 152, 371, 44),
+            rect=(cx + 506, cy + 152, 251, 44),
             text="EXPORTAR REPORTE PDF [P]",
             font=self.fonts["header"],
             callback=self._generate_pdf_report,
@@ -196,7 +205,7 @@ class DataCenterDashboardApp:
             btn_traf_dec, btn_traf_inc,
             btn_temp_dec, btn_temp_inc,
             btn_pause, btn_fail, btn_burst, btn_recover,
-            btn_nonlin, btn_pdf
+            btn_nonlin, btn_stress, btn_pdf
         ])
 
     def _toggle_nonlinear_lab(self) -> None:
@@ -260,6 +269,11 @@ class DataCenterDashboardApp:
                 self.simulation.traffic_generator._run_generator()
             )
         self._set_toast("Rafaga de trafico inyectada (+8 paquetes/s)")
+
+    def _trigger_thermal_stress(self) -> None:
+        """Inyecta un choque térmico brusco en los servidores para forzar el régimen superlineal."""
+        target_s = self.simulation.trigger_thermal_stress("S_WEB", duration=6.0)
+        self._set_toast(f"¡TEST ESTRÉS en {target_s}! Carga 95%, cruza inflexión 48°C y acelera ventilador.")
 
     def _generate_pdf_report(self) -> None:
         """Genera el reporte PDF y consulta la IA."""
@@ -327,6 +341,10 @@ class DataCenterDashboardApp:
                             self.nonlinear_lab_renderer.handle_key(event.key)
                     elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                         self.nonlinear_lab_renderer.handle_click(event.pos)
+                        if getattr(self.nonlinear_lab_renderer, "should_close", False):
+                            self.show_nonlinear_lab = False
+                            self.nonlinear_lab_renderer.should_close = False
+                            self._set_toast("Regresando al Datacenter")
                 else:
                     if event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_ESCAPE:
@@ -341,6 +359,8 @@ class DataCenterDashboardApp:
                             self._recover_nodes()
                         elif event.key == pygame.K_t:
                             self._inject_traffic_burst()
+                        elif event.key == pygame.K_s:
+                            self._trigger_thermal_stress()
                         elif event.key == pygame.K_p:
                             self._generate_pdf_report()
                         # Modificación dinámica de variables por teclado

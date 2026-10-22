@@ -150,7 +150,13 @@ class NetworkTopologyRenderer:
             q_surf = self.fonts["small"].render(q_txt, True, q_color)
             surface.blit(q_surf, (pos[0] - 26, pos[1] + 28))
 
-        # 4. Dibujar Servidores
+        # 4. Dibujar Servidores con Emulación Física (Ventiladores Giratorios, Aura Térmica y Termómetro)
+        now_t = time.time()
+        dt_frame = min(0.1, now_t - getattr(self, "_last_draw_time", now_t))
+        self._last_draw_time = now_t
+        if not hasattr(self, "fan_angles"):
+            self.fan_angles = {s.id: 0.0 for s in self.config.servers}
+
         for s_cfg in self.config.servers:
             pos = self.node_positions.get(s_cfg.id)
             if not pos:
@@ -161,42 +167,121 @@ class NetworkTopologyRenderer:
             load = s_state.current_load if s_state else 0.0
             fan_p = s_state.fan_power if s_state else 10.0
             p_alloc = s_state.allocated_power if s_state else 50.0
-            is_emerg = s_state.is_emergency_cooling if s_state else False
+            is_emerg = s_state.is_emergency_cooling if s_state else (temp >= 48.04 or load >= 0.60)
 
-            # Rectángulo del servidor más grande y legible
-            box_w, box_h = 150, 80
+            # Actualizar rotación física de las aspas del ventilador según la potencia W
+            rpm_factor = 2.5 + (fan_p / 100.0) * 22.0  # rad/s proporcional a W
+            self.fan_angles[s_cfg.id] = (self.fan_angles.get(s_cfg.id, 0.0) + rpm_factor * dt_frame) % (2.0 * math.pi)
+
+            # Dimensiones del bloque del servidor
+            box_w, box_h = 168, 88
             box_rect = pygame.Rect(pos[0] - box_w // 2, pos[1] - box_h // 2, box_w, box_h)
 
-            s_border = SERVER_EMERGENCY if is_emerg else (SERVER_WARNING if temp > s_cfg.target_temp else SERVER_NORMAL)
-            if is_emerg:
-                # Pulsación en alerta
-                pulse = int(abs(math.sin(time.time() * 6)) * 4) + 2
-                pygame.draw.rect(surface, (50, 15, 18), box_rect, border_radius=6)
-                pygame.draw.rect(surface, SERVER_EMERGENCY, box_rect, width=pulse, border_radius=6)
+            # --- A. RESPLANDOR TÉRMICO / HEATMAP AURA ---
+            # Se activa y pulsa con fuerza al superar el Punto de Inflexión (48.04°C)
+            if is_emerg or temp >= 48.04:
+                pulse = int(abs(math.sin(now_t * 8.0)) * 6) + 3
+                aura_surf = pygame.Surface((box_w + 24 + pulse * 2, box_h + 24 + pulse * 2), pygame.SRCALPHA)
+                aura_color = (248, 81, 73, 55 + pulse * 8)
+                pygame.draw.rect(aura_surf, aura_color, aura_surf.get_rect(), border_radius=12)
+                surface.blit(aura_surf, (box_rect.x - 12 - pulse, box_rect.y - 12 - pulse))
+                s_border = SERVER_EMERGENCY
+                bg_color = (48, 16, 20)
+            elif temp >= 38.0:
+                # Zona de calentamiento intermedio (Ámbar)
+                aura_surf = pygame.Surface((box_w + 14, box_h + 14), pygame.SRCALPHA)
+                pygame.draw.rect(aura_surf, (210, 153, 34, 40), aura_surf.get_rect(), border_radius=10)
+                surface.blit(aura_surf, (box_rect.x - 7, box_rect.y - 7))
+                s_border = (210, 153, 34)
+                bg_color = CARD_BG
             else:
-                pygame.draw.rect(surface, CARD_BG, box_rect, border_radius=6)
-                pygame.draw.rect(surface, s_border, box_rect, width=1, border_radius=6)
+                # Régimen frío / estable (Cian)
+                s_border = SERVER_NORMAL
+                bg_color = CARD_BG
 
-            # Nombre
+            # Caja del Servidor
+            pygame.draw.rect(surface, bg_color, box_rect, border_radius=8)
+            pygame.draw.rect(surface, s_border, box_rect, width=2 if is_emerg else 1, border_radius=8)
+
+            # --- B. TERMÓMETRO ANALÓGICO VERTICAL (Con marca de Inflexión) ---
+            t_meter_x = box_rect.x + 8
+            t_meter_y = box_rect.y + 12
+            t_meter_w = 7
+            t_meter_h = 64
+
+            # Fondo del tubo de mercurio
+            pygame.draw.rect(surface, (15, 18, 24), (t_meter_x, t_meter_y, t_meter_w, t_meter_h), border_radius=3)
+            pygame.draw.rect(surface, (60, 68, 80), (t_meter_x, t_meter_y, t_meter_w, t_meter_h), width=1, border_radius=3)
+
+            # Altura del mercurio (escala de 20°C a 85°C)
+            temp_ratio = max(0.0, min(1.0, (temp - 20.0) / (85.0 - 20.0)))
+            fill_h = int(t_meter_h * temp_ratio)
+            col_mercury = (248, 81, 73) if temp >= 48.04 else ((210, 153, 34) if temp >= 38.0 else (88, 166, 255))
+            if fill_h > 0:
+                pygame.draw.rect(
+                    surface,
+                    col_mercury,
+                    (t_meter_x + 1, t_meter_y + t_meter_h - fill_h, t_meter_w - 2, fill_h),
+                    border_radius=2
+                )
+
+            # Marca roja del Punto de Inflexión (48.04°C = ~43% de la altura)
+            infl_ratio = (48.04 - 20.0) / (85.0 - 20.0)
+            infl_y = t_meter_y + t_meter_h - int(t_meter_h * infl_ratio)
+            pygame.draw.line(surface, (255, 60, 60), (t_meter_x - 3, infl_y), (t_meter_x + t_meter_w + 2, infl_y), 2)
+
+            # --- C. VENTILADOR FÍSICO GIRATORIO ---
+            fan_cx = box_rect.right - 22
+            fan_cy = box_rect.y + 24
+            fan_rad = 14
+
+            # Carcasa circular del ventilador
+            pygame.draw.circle(surface, (12, 16, 22), (fan_cx, fan_cy), fan_rad)
+            pygame.draw.circle(surface, (70, 85, 105), (fan_cx, fan_cy), fan_rad, width=1)
+
+            # Aspas rotatorias
+            base_ang = self.fan_angles[s_cfg.id]
+            for blade_i in range(4):
+                ang = base_ang + blade_i * (math.pi / 2.0)
+                bx = fan_cx + math.cos(ang) * (fan_rad - 2)
+                by = fan_cy + math.sin(ang) * (fan_rad - 2)
+                blade_col = (255, 230, 100) if is_emerg else (180, 200, 220)
+                pygame.draw.line(surface, blade_col, (fan_cx, fan_cy), (bx, by), 2)
+            pygame.draw.circle(surface, (210, 220, 235), (fan_cx, fan_cy), 3)
+
+            # Etiqueta de potencia del ventilador debajo
+            fan_lbl = self.fonts["small"].render(f"{fan_p:.0f}W", True, (140, 165, 190))
+            surface.blit(fan_lbl, (fan_cx - fan_lbl.get_width() // 2, fan_cy + fan_rad + 2))
+
+            # --- D. INFORMACIÓN Y CARGA DE SERVIDOR ---
+            content_x = box_rect.x + 22
+            # Nombre y estado
             s_title = self.fonts["mono_bold"].render(s_cfg.id, True, TEXT_PRIMARY)
-            surface.blit(s_title, (box_rect.x + 10, box_rect.y + 6))
+            surface.blit(s_title, (content_x, box_rect.y + 6))
 
             # Barra de carga CPU/RAM
-            bar_w = box_w - 20
+            bar_w = box_rect.width - 58
             bar_fill = int(bar_w * max(0.0, min(1.0, load)))
-            pygame.draw.rect(surface, (20, 24, 30), (box_rect.x + 10, box_rect.y + 26, bar_w, 7), border_radius=3)
-            pygame.draw.rect(surface, (88, 166, 255), (box_rect.x + 10, box_rect.y + 26, bar_fill, 7), border_radius=3)
+            pygame.draw.rect(surface, (20, 24, 30), (content_x, box_rect.y + 25, bar_w, 6), border_radius=3)
+            load_col = (248, 81, 73) if load >= 0.60 else (88, 166, 255)
+            pygame.draw.rect(surface, load_col, (content_x, box_rect.y + 25, bar_fill, 6), border_radius=3)
 
-            # Texto Temp & Fan
-            t_color = SERVER_EMERGENCY if is_emerg else TEXT_PRIMARY
-            t_txt = f"{temp:.1f} C | Fan: {fan_p:.0f}W"
-            t_surf = self.fonts["small"].render(t_txt, True, t_color)
-            surface.blit(t_surf, (box_rect.x + 10, box_rect.y + 38))
+            # Texto de Temperatura y Estado Térmico
+            t_txt = f"{temp:.1f}°C"
+            if is_emerg:
+                t_txt += " (CRÍTICO 60%!)"
+            t_surf = self.fonts["small"].render(t_txt, True, col_mercury)
+            surface.blit(t_surf, (content_x, box_rect.y + 36))
 
             # Texto Energía asignada por Lagrange
             e_txt = f"Lagrange: {p_alloc:.1f} kW"
             e_surf = self.fonts["small"].render(e_txt, True, (163, 113, 247))
-            surface.blit(e_surf, (box_rect.x + 10, box_rect.y + 56))
+            surface.blit(e_surf, (content_x, box_rect.y + 53))
+
+            # Indicador de Carga numérica
+            l_txt = f"Carga: {load * 100:.0f}%"
+            l_surf = self.fonts["small"].render(l_txt, True, TEXT_MUTED)
+            surface.blit(l_surf, (content_x, box_rect.y + 68))
 
         # 5. Banner de Alerta Visual de Cambio Dinámico de Ruta (DP)
         time_since_reroute = time.time() - self.last_path_change_time

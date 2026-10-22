@@ -156,6 +156,7 @@ python src/main.py
 - `[F]`: Provocar una falla estocástica manual en un router (demuestra en vivo cómo la ruta de DP se adapta dinámicamente iluminándose en la pantalla).
 - `[R]`: Reparar y restablecer todos los nodos caídos.
 - `[T]`: Inyectar una ráfaga de tráfico entrante.
+- `[S]`: **Prueba de Estrés Térmico:** Inyecta una sobrecarga brusca de calor (+95% carga / +18°C) para observar en vivo cómo el servidor cruza el punto de inflexión (48°C), el resplandor térmico parpadea en rojo, el ventilador acelera por gradiente y estabiliza la temperatura.
 - `[P]`: Generar y exportar el informe ejecutivo en PDF con análisis de IA a la carpeta `reports/`.
 - `[ESC]`: Salir del simulador o cerrar el modal activo.
 
